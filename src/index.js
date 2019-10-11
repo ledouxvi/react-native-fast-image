@@ -11,57 +11,102 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-function FastImageBase({
-    source,
-    tintColor,
-    onLoadStart,
-    onProgress,
-    onLoad,
-    onError,
-    onLoadEnd,
-    style,
-    children,
-    fallback,
-    forwardedRef,
-    ...props
-}) {
-    const resolvedSource = Image.resolveAssetSource(source)
+class FastImageBase extends React.Component
+{
+    componentDidUpdate(prevProps, prevState) {
+        if (this.props.source.uri === prevProps.source.uri) {
+            return
+        }
 
-    if (fallback) {
+        this.setState({
+            loaded: false,
+            error: null,
+        })
+    }
+
+    state = {
+        loaded: false,
+        error: null,
+    }
+
+    render ()
+    {
+        const {
+            source,
+            onLoadStart,
+            onProgress,
+            onLoad,
+            onError,
+            onLoadEnd,
+            style,
+            children,
+            fallback,
+            placeholder,
+            ...props
+        } = this.props;
+
+        const { loaded, error } = this.state;
+
+        const resolvedSource = Image.resolveAssetSource(source)
+
+        if (fallback)
+        {
+            return (
+                <View
+                    style={[styles.imageContainer, style]}
+                    ref={this.captureRef}
+                >
+                    {(!loaded || error) && placeholder}
+                    <FastImageView
+                        {...props}
+                        style={StyleSheet.absoluteFill}
+                        source={resolvedSource}
+                        onLoadStart={onLoadStart}
+                        onProgress={onProgress}
+                        onLoad={onLoad}
+                        onError={onError}
+                        onLoadEnd={onLoadEnd}
+                    />
+                    {children}
+                </View>
+            )
+        }
+
         return (
-            <View style={[styles.imageContainer, style]} ref={forwardedRef}>
-                <Image
+            <View style={[styles.imageContainer, style]} ref={this.captureRef}>
+                {(!loaded || error) && placeholder}
+                <FastImageView
                     {...props}
-                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
+                    onFastImageLoadStart={onLoadStart}
+                    onFastImageProgress={onProgress}
+                    onFastImageLoad={onLoad}
+                    onFastImageError={data =>
+                    {
+                        this.setState({
+                            error: true,
+                        })
+                        if(onError)
+                        {
+                            onError(data)
+                        }
+                    }}
+                    onFastImageLoadEnd={data =>
+                    {
+                        this.setState({
+                            loaded: true,
+                        })
+                        if(onLoadEnd)
+                        {
+                            onLoadEnd(data)
+                        }
+                    }}
                 />
                 {children}
             </View>
         )
     }
-
-    return (
-        <View style={[styles.imageContainer, style]} ref={forwardedRef}>
-            <FastImageView
-                {...props}
-                tintColor={tintColor}
-                style={StyleSheet.absoluteFill}
-                source={resolvedSource}
-                onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={onProgress}
-                onFastImageLoad={onLoad}
-                onFastImageError={onError}
-                onFastImageLoadEnd={onLoadEnd}
-            />
-            {children}
-        </View>
-    )
 }
 
 const FastImageMemo = memo(FastImageBase)
